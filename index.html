@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Presupuesto">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <title>Gestor de Presupuesto Mensual</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .paid-row {
+            background-color: #f0fdf4 !important;
+            border-left: 4px solid #16a34a !important;
+        }
+        .unpaid-row {
+            background-color: #ffffff;
+            border-left: 4px solid #cbd5e1;
+        }
+        .unpaid-row:hover {
+            background-color: #f8fafc;
+        }
+        .dragging {
+            opacity: 0.5;
+            background-color: #e2e8f0 !important;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col pb-12 selection:bg-emerald-500 selection:text-white">
+
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-lg border-b border-slate-800">
+        <div class="max-w-5xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <!-- App Title -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-900 shadow-md font-extrabold text-xl">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-bold leading-tight">Presupuesto Mensual</h1>
+                        <p class="text-xs text-slate-400">Control de Gastos & Pagos</p>
+                    </div>
+                </div>
+
+                <!-- Month Selector Nav -->
+                <div class="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700/80 shadow-inner">
+                    <button id="btnPrevMonth" class="px-2.5 py-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition active:scale-95" title="Mes Anterior">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <div id="currentMonthDisplay" class="px-3 text-xs sm:text-sm font-bold text-emerald-400 tracking-wide uppercase min-w-[130px] text-center">
+                        Septiembre 2026
+                    </div>
+                    <button id="btnNextMonth" class="px-2.5 py-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition active:scale-95" title="Mes Siguiente">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button id="btnOpenNewMonthModal" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow flex items-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span>Copiar / Crear Mes</span>
+                    </button>
+                    
+                    <button id="btnNotificationToggle" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs border border-slate-700 transition relative flex items-center gap-1.5" title="Notificaciones & Recordatorios">
+                        <i id="iconNotification" class="fa-solid fa-bell text-amber-400"></i>
+                        <span class="hidden md:inline">Alertas</span>
+                        <span id="badgeNotification" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-slate-900"></span>
+                    </button>
+                    
+                    <button id="btnOpenHistoryModal" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs border border-slate-700 transition" title="Historial de Meses">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </button>
+
+                    <!-- Export to Excel Button -->
+                    <button id="btnExportCsv" class="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold border border-emerald-600 transition flex items-center gap-1.5 shadow" title="Exportar Mes a Excel (.CSV)">
+                        <i class="fa-solid fa-file-excel text-emerald-300"></i>
+                        <span class="hidden sm:inline">Excel</span>
+                    </button>
+
+                    <button id="btnOpenInstallModal" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow flex items-center gap-1 transition" title="Instalar App">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                        <span class="hidden sm:inline">Instalar App</span>
+                    </button>
+
+                    <!-- Backup Export & Import -->
+                    <button id="btnExportData" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs border border-slate-700 transition" title="Descargar Respaldo (JSON)">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+
+                    <button id="btnImportData" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs border border-slate-700 transition" title="Restaurar / Cargar Respaldo (JSON)">
+                        <i class="fa-solid fa-upload"></i>
+                    </button>
+                    <input type="file" id="inputImportFile" accept=".json" class="hidden">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-3 sm:px-4 pt-4 flex-1 w-full space-y-4">
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Total Presupuesto -->
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Presupuesto</span>
+                <div class="mt-1 flex items-baseline justify-between">
+                    <span id="statTotal" class="text-base sm:text-lg font-extrabold text-slate-900">$0</span>
+                    <i class="fa-solid fa-file-invoice-dollar text-slate-300 text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Total Pagado -->
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-emerald-100 bg-emerald-50/20 flex flex-col justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Total Pagado</span>
+                <div class="mt-1 flex items-baseline justify-between">
+                    <span id="statPaid" class="text-base sm:text-lg font-extrabold text-emerald-600">$0</span>
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Total Pendiente -->
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-amber-100 bg-amber-50/20 flex flex-col justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-amber-600">Total Pendiente</span>
+                <div class="mt-1 flex items-baseline justify-between">
+                    <span id="statPending" class="text-base sm:text-lg font-extrabold text-amber-600">$0</span>
+                    <i class="fa-solid fa-clock text-amber-400 text-sm"></i>
+                </div>
+            </div>
+
+            <!-- Progreso % -->
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Progreso de Pago</span>
+                <div class="mt-1">
+                    <div class="flex items-center justify-between text-xs font-bold mb-1">
+                        <span id="statProgressText" class="text-emerald-600">0%</span>
+                        <span id="statItemsCount" class="text-slate-400 text-[10px]">0/0 items</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div id="statProgressBar" class="bg-emerald-500 h-full transition-all duration-300 w-0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Add controls -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-white p-3 rounded-2xl shadow-sm border border-slate-200/80">
+            <div class="flex items-center gap-2 flex-1">
+                <div class="relative flex-1 max-w-xs">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar concepto o entidad..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <select id="filterSelect" class="py-1.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none">
+                    <option value="all">Todos los rubros</option>
+                    <option value="pending">Solo Pendientes</option>
+                    <option value="paid">Solo Pagados</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="btnOpenAddModal" class="flex-1 sm:flex-none px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1.5 transition active:scale-95">
+                    <i class="fa-solid fa-plus text-emerald-400"></i>
+                    <span>Agregar Rubro</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                        <tr class="bg-slate-900 text-slate-300 text-[11px] uppercase tracking-wider font-semibold select-none">
+                            <th class="py-3 px-2 text-center w-14">Mover</th>
+                            <th class="py-3 px-3 text-center w-12">Pago</th>
+                            <th class="py-3 px-3 w-28">Fecha</th>
+                            <th class="py-3 px-3">Descripción</th>
+                            <th class="py-3 px-3">Entidad</th>
+                            <th class="py-3 px-3 text-right w-32">Valor ($)</th>
+                            <th class="py-3 px-2 text-center w-20">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budgetTableBody" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                        <!-- Dynamic rows populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden p-8 text-center flex-col items-center justify-center">
+                <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2 mx-auto">
+                    <i class="fa-solid fa-receipt text-xl"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-600">No hay rubros agregados para este mes</p>
+                <p class="text-xs text-slate-400 mt-0.5">Agrega un nuevo gasto o copia la plantilla del mes anterior.</p>
+                <button id="btnEmptyStateAdd" class="mt-3 px-4 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow hover:bg-emerald-700 transition">
+                    + Crear primer gasto
+                </button>
+            </div>
+        </div>
+
+        <!-- Sticky Footer Total -->
+        <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-md flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-slate-800 rounded-xl text-emerald-400 border border-slate-700">
+                    <i class="fa-solid fa-calculator text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider block">Resumen del Mes</span>
+                    <span class="text-sm font-bold text-white">Total Presupuestado</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <div id="footerGrandTotal" class="text-xl sm:text-2xl font-extrabold text-emerald-400">$0</div>
+                <span id="footerPendingSubtitle" class="text-[11px] text-amber-400 font-medium">Pendiente por pagar: $0</span>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Item Modal -->
+    <div id="itemModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+                <h3 id="modalItemTitle" class="text-base font-bold text-slate-900">Agregar Nuevo Gasto</h3>
+                <button id="btnCloseItemModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="itemForm" class="space-y-3">
+                <input type="hidden" id="itemId">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Fecha</label>
+                    <input type="date" id="inputItemDate" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-xs font-semibold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Descripción del Gasto / Servicio</label>
+                    <input type="text" id="inputItemDesc" placeholder="Ej: Servicio Publicos EPM" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-xs font-medium">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Entidad / Destinatario</label>
+                    <input type="text" id="inputItemEntity" placeholder="Ej: EPM, Banco, Claro, Personal..." required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-xs font-medium">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Valor ($ COP)</label>
+                    <input type="number" id="inputItemValue" placeholder="Ej: 328730" min="0" step="1" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-sm font-bold">
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="inputItemPaid" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                    <label for="inputItemPaid" class="text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        Marcar como Pagado
+                    </label>
+                </div>
+
+                <div class="flex gap-2 pt-3">
+                    <button type="button" id="btnCancelItemModal" class="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Month / Clone Modal -->
+    <div id="newMonthModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+                <h3 class="text-base font-bold text-slate-900">Crear o Copiar Presupuesto</h3>
+                <button id="btnCloseNewMonthModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="newMonthForm" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Mes Destino</label>
+                    <input type="month" id="inputMonthYear" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-xs font-bold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1 uppercase tracking-wider">Copiar rubros desde</label>
+                    <select id="selectSourceMonth" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none text-slate-800 text-xs font-medium">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="flex items-start gap-2 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200/80">
+                    <input type="checkbox" id="inputCopyPrevious" checked class="w-4 h-4 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                    <label for="inputCopyPrevious" class="text-xs font-medium text-emerald-900 cursor-pointer select-none">
+                        Copiar plantilla de gastos e reiniciar casillas como pendientes
+                    </label>
+                </div>
+
+                <p class="text-[11px] text-slate-500 leading-tight">
+                    <i class="fa-solid fa-circle-info text-blue-500 mr-0.5"></i>
+                    Podrás editar o eliminar cualquier rubro copiado sin modificar los meses anteriores.
+                </p>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btnCancelNewMonth" class="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow transition">
+                        Generar Mes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900">Historial de Meses</h3>
+                <button id="btnCloseHistoryModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="historyList" class="divide-y divide-slate-100 overflow-y-auto flex-1 my-3 pr-1">
+                <!-- Dynamic history -->
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex justify-end">
+                <button id="btnCloseHistoryModalBottom" class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Installation Helper Modal -->
+    <div id="installModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button text-indigo-600 text-lg"></i>
+                    <h3 class="text-base font-bold text-slate-900">Instalar en tu Celular</h3>
+                </div>
+                <button id="btnCloseInstallModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-600">
+                <div class="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1">
+                    <p class="font-bold text-indigo-900 flex items-center gap-1.5">
+                        <i class="fa-brands fa-android text-emerald-600 text-sm"></i> Android (Google Chrome)
+                    </p>
+                    <ol class="list-decimal list-inside text-indigo-800 space-y-0.5 pl-1">
+                        <li>Toca los <b>3 puntos (⋮)</b> arriba a la derecha.</li>
+                        <li>Selecciona <b>"Agregar a la pantalla principal"</b> o <b>"Instalar aplicación"</b>.</li>
+                    </ol>
+                </div>
+
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                    <p class="font-bold text-slate-900 flex items-center gap-1.5">
+                        <i class="fa-brands fa-apple text-slate-800 text-sm"></i> iPhone (Safari)
+                    </p>
+                    <ol class="list-decimal list-inside text-slate-700 space-y-0.5 pl-1">
+                        <li>Toca el botón <b>Compartir (↑)</b> en la barra inferior.</li>
+                        <li>Desplázate hacia abajo y elige <b>"Agregar a inicio"</b>.</li>
+                    </ol>
+                </div>
+
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                    <p class="font-bold text-amber-900 flex items-center gap-1">
+                        <i class="fa-solid fa-circle-info text-amber-600"></i> ¿Deseas descargar el archivo para guardarlo en tu celular?
+                    </p>
+                    <p class="text-[11px] text-amber-800 leading-normal">
+                        Puedes descargar el archivo completo <b>.html</b> directamente a la memoria de tu teléfono para abrirlo siempre offline sin necesidad de un sitio web.
+                    </p>
+                    <button id="btnDownloadHtmlApp" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-arrow-down"></i>
+                        <span>Descargar Archivo de la App (.html)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-1 flex justify-end">
+                <button id="btnCloseInstallModalBottom" class="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800">
+                    Entendido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Message Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        const monthNames = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+
+        // Initial items for September 2026
+        const initialBudgetSeptember2026 = [
+            { id: '1', date: '2026-09-04', desc: 'Fra Claro', entity: 'Claro', value: 102250, paid: true },
+            { id: '2', date: '2026-09-04', desc: 'Cuota Sistecredito', entity: 'Sistecredito', value: 36274, paid: true },
+            { id: '3', date: '2026-09-04', desc: 'Arreglo Carro Daniel', entity: 'Daniel', value: 276000, paid: true },
+            { id: '4', date: '2026-09-14', desc: 'Cuota Nu', entity: 'Nu', value: 193681, paid: false },
+            { id: '5', date: '2026-09-15', desc: 'Cuota Casa', entity: 'Casa', value: 350000, paid: false },
+            { id: '6', date: '2026-09-15', desc: 'Cuota Moto', entity: 'Banco Caja Social', value: 385000, paid: false },
+            { id: '7', date: '2026-09-18', desc: 'cancelo cuota serfinanza 3429', entity: 'Bco serfinanza', value: 489503, paid: false },
+            { id: '8', date: '2026-09-18', desc: 'cancelo cuota serfinanza 8382', entity: 'Bco serfinanza', value: 173130, paid: false },
+            { id: '9', date: '2026-09-20', desc: 'Cuota Flamingo', entity: 'Flamingo', value: 112000, paid: false },
+            { id: '10', date: '2026-09-21', desc: 'Cuota Alkomprar', entity: 'Alkomprar', value: 70000, paid: false },
+            { id: '11', date: '2026-09-24', desc: 'Fra Tigo', entity: 'Tigo', value: 98000, paid: false },
+            { id: '12', date: '2026-09-26', desc: 'Servicio Publicos EPM', entity: 'EPM', value: 328730, paid: false },
+            { id: '13', date: '2026-09-27', desc: 'Cuota Coobelen', entity: 'Coobelen', value: 950000, paid: false },
+            { id: '14', date: '2026-09-28', desc: 'Cuota Addi', entity: 'Addi', value: 352228, paid: false },
+            { id: '15', date: '2026-09-30', desc: 'Cuota Funeraria', entity: 'San Juan Bautista', value: 24450, paid: false },
+            { id: '16', date: '2026-09-30', desc: 'Compra de Tiket Baloto', entity: 'Baloto', value: 117000, paid: false },
+            { id: '17', date: '2026-09-30', desc: 'Gasto Personal', entity: 'Personal', value: 280000, paid: false },
+            { id: '18', date: '2026-09-30', desc: 'Gastos Deportivos Emmanuel', entity: 'Personal', value: 200000, paid: false }
+        ];
+
+        let store = {
+            currentMonthKey: '2026-09',
+            months: {
+                '2026-09': [...initialBudgetSeptember2026]
+            }
+        };
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem('app_presupuesto_store_v3');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.months && Object.keys(parsed.months).length > 0) {
+                        store = parsed;
+                    }
+                }
+            } catch (e) {
+                console.error("Error loading local storage state", e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('app_presupuesto_store_v3', JSON.stringify(store));
+            } catch (e) {
+                console.error("Error saving state to local storage", e);
+            }
+        }
+
+        function formatCOP(amount) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
+
+        function render() {
+            const currentItems = store.months[store.currentMonthKey] || [];
+
+            const [year, month] = store.currentMonthKey.split('-');
+            const monthIdx = parseInt(month, 10) - 1;
+            document.getElementById('currentMonthDisplay').textContent = `${monthNames[monthIdx]} ${year}`;
+
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filterValue = document.getElementById('filterSelect').value;
+
+            let filteredItems = currentItems.filter(item => {
+                const matchesSearch = item.desc.toLowerCase().includes(searchTerm) || 
+                                      item.entity.toLowerCase().includes(searchTerm);
+                if (filterValue === 'paid') return matchesSearch && item.paid;
+                if (filterValue === 'pending') return matchesSearch && !item.paid;
+                return matchesSearch;
+            });
+
+            let totalVal = 0;
+            let paidVal = 0;
+            let pendingVal = 0;
+            let paidCount = 0;
+
+            currentItems.forEach(item => {
+                totalVal += Number(item.value) || 0;
+                if (item.paid) {
+                    paidVal += Number(item.value) || 0;
+                    paidCount++;
+                } else {
+                    pendingVal += Number(item.value) || 0;
+                }
+            });
+
+            document.getElementById('statTotal').textContent = formatCOP(totalVal);
+            document.getElementById('statPaid').textContent = formatCOP(paidVal);
+            document.getElementById('statPending').textContent = formatCOP(pendingVal);
+
+            const progressPct = currentItems.length > 0 ? Math.round((paidCount / currentItems.length) * 100) : 0;
+            document.getElementById('statProgressText').textContent = `${progressPct}%`;
+            document.getElementById('statItemsCount').textContent = `${paidCount}/${currentItems.length} pagados`;
+            document.getElementById('statProgressBar').style.width = `${progressPct}%`;
+
+            document.getElementById('footerGrandTotal').textContent = formatCOP(totalVal);
+            document.getElementById('footerPendingSubtitle').textContent = `Pendiente por pagar: ${formatCOP(pendingVal)}`;
+
+            const tbody = document.getElementById('budgetTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            tbody.innerHTML = '';
+
+            if (filteredItems.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+
+                filteredItems.forEach((item, index) => {
+                    const actualIdx = currentItems.findIndex(i => i.id === item.id);
+                    const tr = document.createElement('tr');
+                    tr.className = `transition border-b border-slate-100 ${item.paid ? 'paid-row' : 'unpaid-row'}`;
+                    tr.draggable = true;
+                    tr.dataset.id = item.id;
+                    tr.dataset.index = actualIdx;
+
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-2 text-center align-middle">
+                            <div class="flex items-center justify-center gap-1">
+                                <span class="drag-handle cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 px-0.5" title="Arrastrar">
+                                    <i class="fa-solid fa-grip-vertical text-xs"></i>
+                                </span>
+                                <div class="flex flex-col gap-0.5">
+                                    <button onclick="moveItem(${actualIdx}, -1)" class="w-6 h-5 bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 rounded flex items-center justify-center transition active:scale-90" title="Subir">
+                                        <i class="fa-solid fa-chevron-up text-[10px]"></i>
+                                    </button>
+                                    <button onclick="moveItem(${actualIdx}, 1)" class="w-6 h-5 bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 rounded flex items-center justify-center transition active:scale-90" title="Bajar">
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="py-2.5 px-3 text-center align-middle">
+                            <input type="checkbox" ${item.paid ? 'checked' : ''} 
+                                onchange="togglePaid('${item.id}')"
+                                class="w-5 h-5 rounded cursor-pointer text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                        </td>
+
+                        <td class="py-2.5 px-3 font-medium text-slate-600 align-middle whitespace-nowrap">
+                            ${formatDate(item.date)}
+                        </td>
+
+                        <td class="py-2.5 px-3 font-semibold text-slate-800 align-middle ${item.paid ? 'line-through text-slate-500' : ''}">
+                            ${escapeHtml(item.desc)}
+                        </td>
+
+                        <td class="py-2.5 px-3 text-slate-600 align-middle">
+                            <span class="inline-block px-2 py-0.5 text-[11px] rounded-lg bg-slate-100 text-slate-700 font-medium">
+                                ${escapeHtml(item.entity)}
+                            </span>
+                        </td>
+
+                        <td class="py-2.5 px-3 text-right font-extrabold text-slate-900 align-middle whitespace-nowrap">
+                            ${formatCOP(item.value)}
+                        </td>
+
+                        <td class="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1">
+                                <button onclick="openEditModal('${item.id}')" class="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Editar">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteItem('${item.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+
+                    tr.addEventListener('dragstart', handleDragStart);
+                    tr.addEventListener('dragover', handleDragOver);
+                    tr.addEventListener('drop', handleDrop);
+                    tr.addEventListener('dragend', handleDragEnd);
+
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function moveItem(index, direction) {
+            const items = store.months[store.currentMonthKey];
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= items.length) return;
+
+            const temp = items[index];
+            items[index] = items[targetIndex];
+            items[targetIndex] = temp;
+
+            saveState();
+            render();
+        }
+
+        function togglePaid(id) {
+            const items = store.months[store.currentMonthKey];
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.paid = !item.paid;
+                saveState();
+                render();
+            }
+        }
+
+        function deleteItem(id) {
+            const items = store.months[store.currentMonthKey];
+            store.months[store.currentMonthKey] = items.filter(i => i.id !== id);
+            saveState();
+            render();
+        }
+
+        let dragSrcIndex = null;
+
+        function handleDragStart(e) {
+            this.classList.add('dragging');
+            dragSrcIndex = parseInt(this.dataset.index, 10);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            const targetIndex = parseInt(this.dataset.index, 10);
+            if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+                const items = store.months[store.currentMonthKey];
+                const movedItem = items.splice(dragSrcIndex, 1)[0];
+                items.splice(targetIndex, 0, movedItem);
+                saveState();
+                render();
+            }
+            return false;
+        }
+
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-600' : type === 'warning' ? 'bg-amber-600' : 'bg-slate-900';
+            toast.className = `${bgClass} text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto max-w-xs`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function exportToCSV() {
+            const items = store.months[store.currentMonthKey] || [];
+            if (items.length === 0) {
+                showToast('No hay rubros en este mes para exportar', 'warning');
+                return;
+            }
+
+            // UTF-8 BOM for Microsoft Excel compatibility
+            let csvContent = "\uFEFF";
+            csvContent += "Fecha;Descripción;Entidad;Valor;Estado\n";
+
+            items.forEach(item => {
+                const estado = item.paid ? "Pagado" : "Pendiente";
+                const desc = `"${(item.desc || '').replace(/"/g, '""')}"`;
+                const entity = `"${(item.entity || '').replace(/"/g, '""')}"`;
+                const date = item.date || '';
+                const value = item.value || 0;
+                csvContent += `${date};${desc};${entity};${value};${estado}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Presupuesto_${store.currentMonthKey}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Archivo Excel (.CSV) descargado con éxito', 'success');
+        }
+
+        function initNotifications() {
+            const btn = document.getElementById('btnNotificationToggle');
+            const icon = document.getElementById('iconNotification');
+            const badge = document.getElementById('badgeNotification');
+            if (!btn) return;
+
+            const isSupported = ("Notification" in window);
+
+            function updateUI() {
+                if (!isSupported) {
+                    icon.className = 'fa-solid fa-bell-slash text-amber-400';
+                    badge.classList.remove('hidden');
+                    badge.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-slate-900';
+                    btn.title = 'Notificaciones no soportadas en este navegador actual (p. ej. iOS Safari sin agregar a inicio)';
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    icon.className = 'fa-solid fa-bell text-emerald-400';
+                    badge.classList.remove('hidden');
+                    badge.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-slate-900';
+                    btn.title = 'Notificaciones activadas (Click para probar)';
+                } else if (Notification.permission === 'denied') {
+                    icon.className = 'fa-solid fa-bell-slash text-slate-500';
+                    badge.classList.add('hidden');
+                    btn.title = 'Notificaciones bloqueadas por la configuración de tu navegador';
+                } else {
+                    icon.className = 'fa-solid fa-bell text-slate-300 animate-pulse';
+                    badge.classList.add('hidden');
+                    btn.title = 'Click para activar recordatorios de pago';
+                }
+            }
+
+            btn.addEventListener('click', () => {
+                if (!isSupported) {
+                    showToast('Este navegador no soporta notificaciones automáticas o requiere agregar la app a la pantalla de inicio.', 'warning');
+                    document.getElementById('installModal').classList.remove('hidden');
+                    return;
+                }
+
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission().then(permission => {
+                        updateUI();
+                        if (permission === 'granted') {
+                            showToast('¡Recordatorios de pago activados!', 'success');
+                            checkUpcomingDueDates(true);
+                        } else {
+                            showToast('No se otorgaron permisos de notificación', 'warning');
+                        }
+                    });
+                } else if (Notification.permission === 'granted') {
+                    sendPushNotification('🔔 Recordatorios Activos', 'Te avisaremos 1 día antes del vencimiento de tus facturas.');
+                    checkUpcomingDueDates(true);
+                } else {
+                    showToast('Las notificaciones están bloqueadas en la configuración de tu navegador', 'warning');
+                }
+            });
+
+            updateUI();
+            if (isSupported) {
+                checkUpcomingDueDates(false);
+            }
+        }
+
+        function sendPushNotification(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(title, {
+                        body: body,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png',
+                        badge: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png',
+                        tag: 'presupuesto-vencimiento'
+                    });
+                } catch (e) {
+                    console.warn('Error al emitir notificación web:', e);
+                }
+            }
+        }
+
+        function checkUpcomingDueDates(manualTrigger = false) {
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const currentItems = store.months[store.currentMonthKey] || [];
+            let notifyCount = 0;
+
+            currentItems.forEach(item => {
+                if (item.paid || !item.date) return;
+
+                const [y, m, d] = item.date.split('-').map(Number);
+                const itemDate = new Date(y, m - 1, d);
+                itemDate.setHours(0, 0, 0, 0);
+
+                const diffTime = itemDate.getTime() - today.getTime();
+                const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+                if (diffDays === 1) {
+                    sendPushNotification(
+                        `⚠️ Vence Mañana: ${item.desc}`,
+                        `Pago a ${item.entity} por valor de ${formatCOP(item.value)}.`
+                    );
+                    notifyCount++;
+                } else if (diffDays === 0) {
+                    sendPushNotification(
+                        `🚨 Vence Hoy: ${item.desc}`,
+                        `Recuerda realizar el pago a ${item.entity} por ${formatCOP(item.value)}.`
+                    );
+                    notifyCount++;
+                }
+            });
+
+            if (manualTrigger && notifyCount === 0) {
+                showToast('No hay cuentas por vencer hoy ni mañana 🎉', 'success');
+            }
+        }
+
+        function changeMonth(delta) {
+            const [year, month] = store.currentMonthKey.split('-').map(Number);
+            let d = new Date(year, month - 1 + delta, 1);
+            let y = d.getFullYear();
+            let m = String(d.getMonth() + 1).padStart(2, '0');
+            const newKey = `${y}-${m}`;
+
+            if (!store.months[newKey]) {
+                store.months[newKey] = [];
+            }
+            store.currentMonthKey = newKey;
+            saveState();
+            render();
+        }
+
+        function openAddModal() {
+            document.getElementById('modalItemTitle').textContent = 'Agregar Nuevo Gasto';
+            document.getElementById('itemId').value = '';
+            
+            const [y, m] = store.currentMonthKey.split('-');
+            document.getElementById('inputItemDate').value = `${y}-${m}-01`;
+            document.getElementById('inputItemDesc').value = '';
+            document.getElementById('inputItemEntity').value = '';
+            document.getElementById('inputItemValue').value = '';
+            document.getElementById('inputItemPaid').checked = false;
+
+            document.getElementById('itemModal').classList.remove('hidden');
+        }
+
+        function openEditModal(id) {
+            const items = store.months[store.currentMonthKey];
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('modalItemTitle').textContent = 'Editar Gasto';
+            document.getElementById('itemId').value = item.id;
+            document.getElementById('inputItemDate').value = item.date;
+            document.getElementById('inputItemDesc').value = item.desc;
+            document.getElementById('inputItemEntity').value = item.entity;
+            document.getElementById('inputItemValue').value = item.value;
+            document.getElementById('inputItemPaid').checked = item.paid;
+
+            document.getElementById('itemModal').classList.remove('hidden');
+        }
+
+        function openNewMonthModal() {
+            const [year, month] = store.currentMonthKey.split('-').map(Number);
+            let d = new Date(year, month, 1);
+            let y = d.getFullYear();
+            let m = String(d.getMonth() + 1).padStart(2, '0');
+            const defaultNextKey = `${y}-${m}`;
+
+            document.getElementById('inputMonthYear').value = defaultNextKey;
+            
+            const sourceSelect = document.getElementById('selectSourceMonth');
+            sourceSelect.innerHTML = '<option value="none">-- No copiar (Crear mes vacío) --</option>';
+            
+            const monthKeys = Object.keys(store.months).sort().reverse();
+            monthKeys.forEach(key => {
+                const [ky, km] = key.split('-');
+                const monthName = `${monthNames[parseInt(km, 10) - 1]} ${ky}`;
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = monthName + (key === store.currentMonthKey ? ' (Actual)' : '');
+                if (key === store.currentMonthKey) option.selected = true;
+                sourceSelect.appendChild(option);
+            });
+
+            document.getElementById('newMonthModal').classList.remove('hidden');
+        }
+
+        function openHistoryModal() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+
+            const keys = Object.keys(store.months).sort().reverse();
+
+            if (keys.length === 0) {
+                historyList.innerHTML = '<p class="text-xs text-slate-400 p-4 text-center">No hay meses registrados</p>';
+            } else {
+                keys.forEach(key => {
+                    const [y, m] = key.split('-');
+                    const name = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+                    const items = store.months[key] || [];
+
+                    let tot = 0;
+                    let paid = 0;
+                    items.forEach(i => {
+                        tot += Number(i.value) || 0;
+                        if (i.paid) paid += Number(i.value) || 0;
+                    });
+
+                    const div = document.createElement('div');
+                    div.className = `p-3 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer ${key === store.currentMonthKey ? 'bg-emerald-50/50' : ''}`;
+                    div.onclick = () => {
+                        store.currentMonthKey = key;
+                        saveState();
+                        render();
+                        document.getElementById('historyModal').classList.add('hidden');
+                    };
+
+                    div.innerHTML = `
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${name} ${key === store.currentMonthKey ? '<span class="text-[10px] text-emerald-600 font-extrabold ml-1">(Actual)</span>' : ''}</span>
+                            <span class="block text-[11px] text-slate-400">${items.length} rubros registrados</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-extrabold text-slate-900 block">${formatCOP(tot)}</span>
+                            <span class="text-[10px] font-semibold text-emerald-600">Pagado: ${formatCOP(paid)}</span>
+                        </div>
+                    `;
+                    historyList.appendChild(div);
+                });
+            }
+
+            document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+
+            document.getElementById('btnPrevMonth').addEventListener('click', () => changeMonth(-1));
+            document.getElementById('btnNextMonth').addEventListener('click', () => changeMonth(1));
+
+            document.getElementById('searchInput').addEventListener('input', render);
+            document.getElementById('filterSelect').addEventListener('change', render);
+
+            document.getElementById('btnOpenAddModal').addEventListener('click', openAddModal);
+            document.getElementById('btnEmptyStateAdd').addEventListener('click', openAddModal);
+            document.getElementById('btnCloseItemModal').addEventListener('click', () => document.getElementById('itemModal').classList.add('hidden'));
+            document.getElementById('btnCancelItemModal').addEventListener('click', () => document.getElementById('itemModal').classList.add('hidden'));
+
+            document.getElementById('itemForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = document.getElementById('itemId').value;
+                const date = document.getElementById('inputItemDate').value;
+                const desc = document.getElementById('inputItemDesc').value.trim();
+                const entity = document.getElementById('inputItemEntity').value.trim();
+                const value = parseFloat(document.getElementById('inputItemValue').value) || 0;
+                const paid = document.getElementById('inputItemPaid').checked;
+
+                const items = store.months[store.currentMonthKey];
+
+                if (id) {
+                    const item = items.find(i => i.id === id);
+                    if (item) {
+                        item.date = date;
+                        item.desc = desc;
+                        item.entity = entity;
+                        item.value = value;
+                        item.paid = paid;
+                    }
+                } else {
+                    const newItem = {
+                        id: Date.now().toString(),
+                        date,
+                        desc,
+                        entity,
+                        value,
+                        paid
+                    };
+                    items.push(newItem);
+                }
+
+                saveState();
+                document.getElementById('itemModal').classList.add('hidden');
+                render();
+            });
+
+            document.getElementById('btnOpenNewMonthModal').addEventListener('click', openNewMonthModal);
+            document.getElementById('btnCloseNewMonthModal').addEventListener('click', () => document.getElementById('newMonthModal').classList.add('hidden'));
+            document.getElementById('btnCancelNewMonth').addEventListener('click', () => document.getElementById('newMonthModal').classList.add('hidden'));
+
+            document.getElementById('newMonthForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const targetMonthKey = document.getElementById('inputMonthYear').value;
+                const sourceMonthKey = document.getElementById('selectSourceMonth').value;
+                const copyPrevious = document.getElementById('inputCopyPrevious').checked;
+
+                if (targetMonthKey) {
+                    if (!store.months[targetMonthKey] || store.months[targetMonthKey].length === 0) {
+                        if (copyPrevious && sourceMonthKey !== 'none' && store.months[sourceMonthKey]) {
+                            store.months[targetMonthKey] = store.months[sourceMonthKey].map((item, idx) => ({
+                                ...item,
+                                id: (Date.now() + idx).toString(),
+                                paid: false,
+                                date: `${targetMonthKey}-${item.date.split('-')[2] || '01'}`
+                            }));
+                        } else {
+                            store.months[targetMonthKey] = [];
+                        }
+                    }
+
+                    store.currentMonthKey = targetMonthKey;
+                    saveState();
+                    document.getElementById('newMonthModal').classList.add('hidden');
+                    render();
+                }
+            });
+
+            document.getElementById('btnOpenHistoryModal').addEventListener('click', openHistoryModal);
+            document.getElementById('btnCloseHistoryModal').addEventListener('click', () => document.getElementById('historyModal').classList.add('hidden'));
+            document.getElementById('btnCloseHistoryModalBottom').addEventListener('click', () => document.getElementById('historyModal').classList.add('hidden'));
+
+            document.getElementById('btnExportCsv').addEventListener('click', exportToCSV);
+
+            document.getElementById('btnOpenInstallModal').addEventListener('click', () => {
+                document.getElementById('installModal').classList.remove('hidden');
+            });
+            document.getElementById('btnCloseInstallModal').addEventListener('click', () => document.getElementById('installModal').classList.add('hidden'));
+            document.getElementById('btnCloseInstallModalBottom').addEventListener('click', () => document.getElementById('installModal').classList.add('hidden'));
+
+            // Download HTML file directly to phone storage
+            document.getElementById('btnDownloadHtmlApp').addEventListener('click', () => {
+                const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = "Presupuesto_Mensual.html";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+
+            // Export JSON Backup
+            document.getElementById('btnExportData').addEventListener('click', () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(store, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `Presupuesto_Respaldo_${store.currentMonthKey}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showToast('Respaldo descargado con éxito', 'success');
+            });
+
+            // Import JSON Backup
+            const btnImportData = document.getElementById('btnImportData');
+            const inputImportFile = document.getElementById('inputImportFile');
+
+            btnImportData.addEventListener('click', () => {
+                inputImportFile.click();
+            });
+
+            inputImportFile.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const importedStore = JSON.parse(event.target.result);
+                        if (importedStore && importedStore.months && typeof importedStore.months === 'object') {
+                            store = importedStore;
+                            saveState();
+                            render();
+                            showToast('¡Respaldo cargado correctamente!', 'success');
+                        } else {
+                            showToast('El archivo no tiene un formato válido de respaldo', 'warning');
+                        }
+                    } catch (err) {
+                        showToast('Error al leer el archivo de respaldo', 'warning');
+                        console.error(err);
+                    }
+                    inputImportFile.value = '';
+                    };
+                reader.readAsText(file);
+            });
+
+            initNotifications();
+
+            // Dynamically construct PWA manifest
+            try {
+                const manifest = {
+                    name: "Gestor de Presupuesto",
+                    short_name: "Presupuesto",
+                    start_url: window.location.href.split('#')[0],
+                    display: "standalone",
+                    background_color: "#0f172a",
+                    theme_color: "#0f172a",
+                    icons: [{
+                        src: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
+                        sizes: "512x512",
+                        type: "image/png"
+                    }]
+                };
+                const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+                const manifestUrl = URL.createObjectURL(blob);
+                const link = document.createElement('link');
+                link.rel = 'manifest';
+                link.href = manifestUrl;
+                document.head.appendChild(link);
+            } catch (err) {
+                console.warn("Manifest dynamic setup notice:", err);
+            }
+
+            render();
+        });
+    </script>
+</body>
+</html>
